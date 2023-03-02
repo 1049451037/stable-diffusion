@@ -1391,10 +1391,22 @@ class LatentDiffusion(DDPM):
         x = 2. * (x - x.min()) / (x.max() - x.min()) - 1.
         return x
 
+from fastldm.helper import TRTModule
+from fastldm.environ import TRT_PATH, TRT_NUM_WORKER
 
 class DiffusionWrapper(pl.LightningModule):
     def __init__(self, diff_model_config, conditioning_key):
         super().__init__()
+        self.use_trt = False
+        if 'trt_path' in diff_model_config.params or TRT_PATH is not None:
+            trt_path = diff_model_config.params.trt_path if 'trt_path' in diff_model_config.params else TRT_PATH
+            num_worker = diff_model_config.params.trt_num_worker if 'trt_num_worker' in diff_model_config.params else TRT_NUM_WORKER
+            self.trt = TRTModule(trt_path, num_worker)
+            self.use_trt = True
+            if 'trt_path' in diff_model_config.params:
+                del diff_model_config.params.trt_path
+            if 'trt_num_worker' in diff_model_config.params:
+                del diff_model_config.params.tr_num_worker
         self.diffusion_model = instantiate_from_config(diff_model_config)
         self.conditioning_key = conditioning_key
         assert self.conditioning_key in [None, 'concat', 'crossattn', 'hybrid', 'adm']
@@ -1407,7 +1419,10 @@ class DiffusionWrapper(pl.LightningModule):
             out = self.diffusion_model(xc, t)
         elif self.conditioning_key == 'crossattn':
             cc = torch.cat(c_crossattn, 1)
-            out = self.diffusion_model(x, t, context=cc)
+            if self.use_trt:
+                out = self.trt(x, t, cc)
+            else:
+                out = self.diffusion_model(x, t, context=cc)
         elif self.conditioning_key == 'hybrid':
             xc = torch.cat([x] + c_concat, dim=1)
             cc = torch.cat(c_crossattn, 1)

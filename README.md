@@ -1,3 +1,11 @@
+# Accelerate sd inference with FastLDM
+
+Install [FastLDM](https://github.com/THUDM/FastLDM) and run `examples/transform_stable_diffusion_unet.py`.
+
+```bash
+TRT_PATH=../trt/UNetModel_ONNX_ONLY_False_.trt python scripts/txt2img.py --prompt "a photograph of an astronaut riding a horse" --plms
+```
+
 # Stable Diffusion
 *Stable Diffusion was made possible thanks to a collaboration with [Stability AI](https://stability.ai/) and [Runway](https://runwayml.com/) and builds upon our previous work:*
 
